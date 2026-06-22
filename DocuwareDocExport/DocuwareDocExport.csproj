@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="DocuWare.Platform.ServerClient" Version="16.6.0" />
+    <PackageReference Include="DocuWare.RestClient" Version="10.7.845371" />
+    <PackageReference Include="DocuWare.UriTemplates" Version="10.7.845371" />
+  </ItemGroup>
+
+</Project>

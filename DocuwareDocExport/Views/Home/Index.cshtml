@@ -1,0 +1,699 @@
+﻿@model DocuwareDocExport.Models.ConfigurationViewModel
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DocuWare Export</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="~/css/site.css">
+    </head>
+    <body>
+        <div class="page-shell">
+            <div class="container app-container">
+
+                <div class="header-section">
+                    <div class="header-text">
+                        <h1>DocuWare Export</h1>
+                        <p>Log in, choose cabinets, filter documents, and download safely.</p>
+                    </div>
+                    <div class="header-image">
+                        <img src="~/images/config-icon.png" alt="Ricoh logo">
+                        </div>
+                    </div>
+
+                    @if (ViewBag.LoginSuccess != null)
+                    {
+                        <div class="message success-message">@ViewBag.LoginSuccess</div>
+                    }
+
+                    @if (ViewBag.DocumentsLoaded != null)
+                    {
+                        <div class="message info-message">@ViewBag.DocumentsLoaded</div>
+                    }
+
+                    @if (ViewBag.Error != null)
+                    {
+                        <div class="message error-message">@ViewBag.Error</div>
+                    }
+
+                    <section class="section-card section-login" id="step1">
+                        <div class="step-badge">Step 1</div>
+                        <h2>Log In</h2>
+
+                        <form asp-controller="Home" asp-action="LoadCabinets" method="post" class="loading-form">
+                            <div class="grid-two">
+                                <div class="form-group">
+                                    <label>URL</label>
+                                    <input type="url" name="Url" value="@Model.Url" placeholder="https://example.com" required>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Username</label>
+                                    <input type="text" name="Username" value="@Model.Username" required>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Password</label>
+                                <input type="password" name="Password" value="@Model.Password" required>
+                            </div>
+
+                            <div class="button-row">
+                                <button type="submit" class="btn btn-primary">Load File Cabinets</button>
+                            </div>
+                        </form>
+                    </section>
+
+                    @if (Model.FileCabinetOptions.Any())
+                    {
+                        <section class="section-card section-filter" id="step2">
+                            <div class="step-badge">Step 2</div>
+                            <h2>Choose Cabinets and Load Index Fields</h2>
+
+                            <form asp-controller="Home" asp-action="LoadFields" method="post" class="loading-form">
+                                <input type="hidden" name="Url" value="@Model.Url" />
+                                <input type="hidden" name="Username" value="@Model.Username" />
+                                <input type="hidden" name="Password" value="@Model.Password" />
+
+                                <div class="form-group">
+                                    <label>Selected File Cabinet(s)</label>
+                                    <select name="SelectedFileCabinetIds" multiple size="8" class="full-select">
+                                        @foreach (var item in Model.FileCabinetOptions)
+                                        {
+                                            <option value="@item.Value" selected="@item.Selected">@item.Text</option>
+                                        }
+                                    </select>
+                                    <small class="helper-text">Only fields from the selected cabinets will be loaded.</small>
+                                </div>
+
+                                <div class="grid-two">
+                                    <div class="form-group">
+                                        <label>From Date</label>
+                                        <input type="date" name="FromDate" value="@Model.FromDate" required>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>To Date</label>
+                                        <input type="date" name="ToDate" value="@Model.ToDate" required>
+                                    </div>
+                                </div>
+
+                                <div class="button-row">
+                                    <button type="submit" class="btn btn-secondary">Load Index Fields</button>
+                                </div>
+                            </form>
+                        </section>
+                    }
+
+                    @if (Model.IndexFieldOptions.Any())
+                    {
+                        <section class="section-card section-search" id="step3">
+                            <div class="step-badge">Step 3</div>
+                            <h2>Search Documents</h2>
+
+                            <form asp-controller="Home" asp-action="LoadDocuments" method="post" class="loading-form">
+                                <input type="hidden" name="Url" value="@Model.Url" />
+                                <input type="hidden" name="Username" value="@Model.Username" />
+                                <input type="hidden" name="Password" value="@Model.Password" />
+                                <input type="hidden" name="FromDate" value="@Model.FromDate" />
+                                <input type="hidden" name="ToDate" value="@Model.ToDate" />
+                                <input type="hidden" name="PageNumber" value="1" />
+                                <input type="hidden" name="PageSize" value="@Model.PageSize" />
+
+                                @foreach (var cabId in Model.SelectedFileCabinetIds)
+                                {
+                                    <input type="hidden" name="SelectedFileCabinetIds" value="@cabId" />
+                                }
+
+                                <div class="form-group">
+                                    <label>Choose Index Field (Optional)</label>
+                                    <select id="SelectedIndexFieldName" name="SelectedIndexFieldName">
+                                        <option value="">(No structured field selected)</option>
+                                        @foreach (var field in Model.IndexFieldOptions)
+                                        {
+                                            <option value="@field.Value" selected="@field.Selected">@field.Text</option>
+                                        }
+                                    </select>
+                                    <small class="helper-text">Leave blank to load all documents in the selected cabinets and date range.</small>
+                                </div>
+
+                                <div class="button-row inner-button-row">
+                                    <button type="submit"
+                                            formaction="@Url.Action("LoadFieldValues", "Home")"
+                                            formmethod="post"
+                                            class="btn btn-secondary">
+                                        Load Field Values
+                                    </button>
+                                </div>
+
+                                @if (!string.IsNullOrWhiteSpace(Model.SelectedIndexFieldName) && Model.FieldValueOptions.Any())
+                                {
+                                    <div class="form-group field-value-panel">
+                                        <label>Field Value (Optional)</label>
+                                        <input type="text"
+                                               id="SelectedIndexFieldValue"
+                                               name="SelectedIndexFieldValue"
+                                               value="@Model.SelectedIndexFieldValue"
+                                               list="fieldValueOptions"
+                                               placeholder="Type to narrow the list and select">
+
+                                        <datalist id="fieldValueOptions">
+                                            @foreach (var value in Model.FieldValueOptions)
+                                            {
+                                                <option value="@value"></option>
+                                            }
+                                        </datalist>
+
+                                        <small class="helper-text">
+                                            This field appears after clicking Load Field Values.
+                                        </small>
+                                    </div>
+                                }
+
+                                <div class="form-group">
+                                    <label>Optional Title Keyword</label>
+                                    <input type="text" name="TitleKeyword" value="@Model.TitleKeyword" placeholder="Manual title search, e.g. January">
+                                    <small class="helper-text">Manual text search on document title only.</small>
+                                </div>
+
+                                <div class="button-row">
+                                    <button type="submit" class="btn btn-primary">Load Documents</button>
+                                </div>
+                            </form>
+                        </section>
+                    }
+
+                    @if (Model.TotalDocumentCount > 0)
+                    {
+                        <section class="section-card section-customize" id="step4">
+                            <div class="step-badge">Step 4</div>
+                            <h2>Folder Customization</h2>
+
+                            <div class="path-order-card">
+                                <strong>Folder order:</strong>
+                                Base Directory → Main Folder → Base Folder Field → Subfolder Levels → Document Folder
+                            </div>
+
+                            <div class="step4-group">
+                                <div class="step4-group-title">1. Base Directory</div>
+
+                                <div class="either-or-pair">
+                                    <div class="choice-box choice-left" id="presetChoiceBox">
+                                        <div class="form-group">
+                                            <label>Base Directory Preset</label>
+                                            <select name="BaseDirectoryPreset" form="downloadForm" id="BaseDirectoryPreset">
+                                                <option value="">(Select a preset folder)</option>
+                                                <option value="Documents" selected="@(Model.BaseDirectoryPreset == "Documents")">Documents</option>
+                                                <option value="Desktop" selected="@(Model.BaseDirectoryPreset == "Desktop")">Desktop</option>
+                                                <option value="Downloads" selected="@(Model.BaseDirectoryPreset == "Downloads")">Downloads</option>
+                                            </select>
+                                            <small class="helper-text">Choose a preset folder.</small>
+                                        </div>
+                                    </div>
+
+                                    <div class="or-divider">
+                                        <span>OR</span>
+                                    </div>
+
+                                    <div class="choice-box choice-right" id="customBaseChoiceBox">
+                                        <div class="form-group">
+                                            <label>Custom Base Directory</label>
+                                            <input type="text"
+                                                   name="CustomBaseDirectory"
+                                                   form="downloadForm"
+                                                   id="CustomBaseDirectory"
+                                                   value="@Model.CustomBaseDirectory"
+                                                   placeholder="e.g. C:\Users\YourName\Downloads\Exports">
+                                            <small class="helper-text">Enter a custom path instead of using a preset.</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="step4-group">
+                                <div class="step4-group-title">2. Main Folder</div>
+
+                                <div class="form-group">
+                                    <label>Main Folder Name</label>
+                                    <input type="text"
+                                           name="MainFolderName"
+                                           form="downloadForm"
+                                           value="@Model.MainFolderName"
+                                           placeholder="Leave blank to use file cabinet name">
+                                    <small class="helper-text">This becomes the main grouping folder under the base directory.</small>
+                                </div>
+                            </div>
+
+                            <div class="step4-group">
+                                <div class="step4-group-title">3. Base Folder Field</div>
+
+                                <div class="form-group">
+                                    <label>Base Folder Field (Optional)</label>
+                                    <select name="SelectedBaseFolderFieldName" form="downloadForm">
+                                        <option value="">(No extra base folder field)</option>
+                                        @foreach (var field in Model.IndexFieldOptions)
+                                        {
+                                            <option value="@field.Value" selected="@(Model.SelectedBaseFolderFieldName == field.Value)">
+                                                @field.Text
+                                            </option>
+                                        }
+                                    </select>
+                                    <small class="helper-text">Adds one extra folder under the main folder using a document field value.</small>
+                                </div>
+                            </div>
+
+                            <div class="step4-group">
+                                <div class="step4-group-title">4. Subfolder Levels</div>
+
+                                <div id="folderLevelsContainer">
+                                    @{
+                                        var levels = (Model.FolderLevels != null && Model.FolderLevels.Any())
+                                            ? Model.FolderLevels
+                                            : new List<DocuwareDocExport.Models.FolderLevelOption> { new() };
+                                    }
+
+                                    @for (int i = 0; i < levels.Count; i++)
+                                    {
+                                        <div class="folder-level-row">
+                                            <div class="folder-level-header">
+                                                <strong>Subfolder Level @(i + 1)</strong>
+                                            </div>
+
+                                            <div class="either-or-pair folder-level-pair">
+                                                <div class="choice-box folder-field-box">
+                                                    <div class="form-group">
+                                                        <label>Field</label>
+                                                        <select name="FolderLevels[@i].FieldName" form="downloadForm" class="folder-level-field">
+                                                            <option value="">(No field selected)</option>
+                                                            @foreach (var field in Model.IndexFieldOptions)
+                                                            {
+                                                                <option value="@field.Value" selected="@(levels[i].FieldName == field.Value)">
+                                                                    @field.Text
+                                                                </option>
+                                                            }
+                                                        </select>
+                                                    </div>
+                                                </div>
+
+                                                <div class="or-divider">
+                                                    <span>OR</span>
+                                                </div>
+
+                                                <div class="choice-box folder-text-box">
+                                                    <div class="form-group">
+                                                        <label>Custom Text</label>
+                                                        <input type="text"
+                                                               name="FolderLevels[@i].CustomText"
+                                                               form="downloadForm"
+                                                               value="@levels[i].CustomText"
+                                                               placeholder="Optional custom folder text">
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            @if (i > 0)
+                                            {
+                                                <div class="button-row inner-button-row">
+                                                    <button type="button" class="btn btn-secondary remove-folder-level-btn" onclick="removeFolderLevel(this)">
+                                                        Remove
+                                                    </button>
+                                                </div>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+
+                                <div class="button-row inner-button-row">
+                                    <button type="button" class="btn btn-secondary" onclick="addFolderLevel()">
+                                        + Add Subfolder Level
+                                    </button>
+                                </div>
+
+                                <small class="helper-text">
+                                    For each level, use either a DocuWare field or custom text. If both are filled, the field value is used first and custom text is used only when the field is blank.
+                                </small>
+                            </div>
+                        </section>
+
+                        <div class="section-divider"></div>
+
+                        <section class="section-card section-results" id="step5">
+                            <div class="step-badge">Step 5</div>
+                            <h2>Select Documents</h2>
+
+                            <form id="downloadForm" asp-controller="Home" asp-action="DownloadSelected" method="post" class="loading-form">
+                                <input type="hidden" name="Url" value="@Model.Url" />
+                                <input type="hidden" name="Username" value="@Model.Username" />
+                                <input type="hidden" name="Password" value="@Model.Password" />
+                                <input type="hidden" name="FromDate" value="@Model.FromDate" />
+                                <input type="hidden" name="ToDate" value="@Model.ToDate" />
+                                <input type="hidden" name="SelectedIndexFieldName" value="@Model.SelectedIndexFieldName" />
+                                <input type="hidden" name="SelectedIndexFieldValue" value="@Model.SelectedIndexFieldValue" />
+                                <input type="hidden" name="TitleKeyword" value="@Model.TitleKeyword" />
+                                <input type="hidden" name="PageNumber" value="@Model.PageNumber" />
+                                <input type="hidden" name="PageSize" value="@Model.PageSize" />
+
+                                @foreach (var cabId in Model.SelectedFileCabinetIds)
+                                {
+                                    <input type="hidden" name="SelectedFileCabinetIds" value="@cabId" />
+                                }
+
+                                <div class="results-toolbar">
+                                    <div class="results-count">
+                                        Showing @Model.DocumentOptions.Count of @Model.TotalDocumentCount document(s)
+                                    </div>
+
+                                    <div class="select-all-row">
+                                        <label class="select-all-label">
+                                            <input type="checkbox" id="selectAllDocuments" />
+                                            <span>Select All Documents</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="document-table">
+                                    <div class="document-table-header">
+                                        <div>Document</div>
+                                        <div>ID / Timestamp</div>
+                                        <div>Document Type</div>
+                                        <div>Custom Folder Name</div>
+                                        <div class="align-right">Select</div>
+                                    </div>
+
+                                    @for (int i = 0; i < Model.DocumentOptions.Count; i++)
+                                    {
+                                        var doc = Model.DocumentOptions[i];
+
+                                        <div class="document-row">
+                                            <input type="hidden" name="DocumentOptions[@i].CabinetId" value="@doc.CabinetId" />
+                                            <input type="hidden" name="DocumentOptions[@i].CabinetName" value="@doc.CabinetName" />
+                                            <input type="hidden" name="DocumentOptions[@i].DocumentId" value="@doc.DocumentId" />
+                                            <input type="hidden" name="DocumentOptions[@i].Title" value="@doc.Title" />
+                                            <input type="hidden" name="DocumentOptions[@i].StoredAt" value="@doc.StoredAt" />
+                                            <input type="hidden" name="DocumentOptions[@i].RowFieldLabel" value="@doc.RowFieldLabel" />
+                                            <input type="hidden" name="DocumentOptions[@i].RowFieldValue" value="@doc.RowFieldValue" />
+
+                                            <div class="document-cell">
+                                                <div class="document-row-title">@doc.Title</div>
+                                            </div>
+
+                                            <div class="document-cell">
+                                                <div class="document-row-meta">ID: @doc.DocumentId</div>
+                                                <div class="document-row-meta">@doc.StoredAt</div>
+                                            </div>
+
+                                            <div class="document-cell">
+                                                <div class="document-row-type">@doc.RowFieldValue</div>
+                                            </div>
+
+                                            <div class="document-cell">
+                                                <input type="text"
+                                                       name="DocumentOptions[@i].CustomSubfolderName"
+                                                       value="@doc.CustomSubfolderName"
+                                                       placeholder="Optional custom folder name">
+                                            </div>
+
+                                            <div class="document-cell align-right">
+                                                <input type="checkbox" name="SelectedDocumentKeys" value="@doc.Key" class="document-checkbox" />
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+
+                                @if (Model.TotalPages > 1)
+                                {
+                                    <div class="pagination-wrap">
+                                        @for (int p = 1; p <= Model.TotalPages; p++)
+                                        {
+                                            <button type="submit"
+                                                    name="targetPage"
+                                                    value="@p"
+                                                    formaction="@Url.Action("ChangePage", "Home")"
+                                                    formmethod="post"
+                                                    formnovalidate
+                                                    class="page-btn @(p == Model.PageNumber ? "active-page" : "")"
+                                                @(p == Model.PageNumber ? "disabled" : "")>
+                                                @p
+                                            </button>
+                                        }
+                                    </div>
+                                }
+
+                                <div class="button-row bottom-download-row">
+                                    <button type="submit" class="btn btn-primary">Download Selected</button>
+
+                                    <button type="submit"
+                                            formaction="@Url.Action("DownloadAll", "Home")"
+                                            formmethod="post"
+                                            class="btn btn-secondary">
+                                        Download All Matched
+                                    </button>
+                                </div>
+
+                                @if (ViewBag.DownloadSuccess != null)
+                                {
+                                    <div class="message success-message download-feedback">
+                                        @ViewBag.DownloadSuccess
+                                    </div>
+                                }
+
+                                @if (ViewBag.DownloadError != null)
+                                {
+                                    <div class="message error-message download-feedback">
+                                        @ViewBag.DownloadError
+                                    </div>
+                                }
+                            </form>
+                        </section>
+                    }
+                </div>
+            </div>
+
+            <template id="folderLevelTemplate">
+                <div class="folder-level-row">
+                    <div class="folder-level-header">
+                        <strong>Subfolder Level</strong>
+                    </div>
+
+                    <div class="either-or-pair folder-level-pair">
+                        <div class="choice-box folder-field-box">
+                            <div class="form-group">
+                                <label>Field</label>
+                                <select class="folder-level-field">
+                                    <option value="">(No field selected)</option>
+                                    @foreach (var field in Model.IndexFieldOptions)
+                                    {
+                                        <option value="@field.Value">@field.Text</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="or-divider">
+                            <span>OR</span>
+                        </div>
+
+                        <div class="choice-box folder-text-box">
+                            <div class="form-group">
+                                <label>Custom Text</label>
+                                <input type="text" placeholder="Optional custom folder text">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="button-row inner-button-row">
+                        <button type="button" class="btn btn-secondary remove-folder-level-btn" onclick="removeFolderLevel(this)">
+                            Remove
+                        </button>
+                    </div>
+                </div>
+            </template>
+
+            <div id="loadingOverlay" class="loading-overlay hidden">
+                <div class="spinner-wrap">
+                    <div class="spinner"></div>
+                    <p>Please wait...</p>
+                </div>
+            </div>
+
+            <script>
+                    document.querySelectorAll(".loading-form").forEach(function (form) {
+                        form.addEventListener("submit", function () {
+                            reindexFolderLevels();
+                            document.getElementById("loadingOverlay").classList.remove("hidden");
+                        });
+                    });
+
+                    const selectAllBox = document.getElementById("selectAllDocuments");
+                    if (selectAllBox) {
+                        selectAllBox.addEventListener("change", function () {
+                            document.querySelectorAll(".document-checkbox").forEach(function (checkbox) {
+                                checkbox.checked = selectAllBox.checked;
+                            });
+                        });
+                    }
+
+                    function reindexFolderLevels() {
+                        const container = document.getElementById("folderLevelsContainer");
+                        if (!container) return;
+
+                        const rows = container.querySelectorAll(".folder-level-row");
+
+                        rows.forEach(function (row, index) {
+                            const header = row.querySelector(".folder-level-header strong");
+                            const select = row.querySelector("select");
+                            const input = row.querySelector("input[type='text']");
+                            const removeWrap = row.querySelector(".button-row");
+
+                            if (header) {
+                                header.textContent = `Subfolder Level ${index + 1}`;
+                            }
+
+                            if (select) {
+                                select.setAttribute("name", `FolderLevels[${index}].FieldName`);
+                                select.setAttribute("form", "downloadForm");
+                            }
+
+                            if (input) {
+                                input.setAttribute("name", `FolderLevels[${index}].CustomText`);
+                                input.setAttribute("form", "downloadForm");
+                            }
+
+                            if (removeWrap) {
+                                removeWrap.style.display = index === 0 ? "none" : "flex";
+                            }
+                        });
+
+                        setupFolderLevelChoiceBehaviour();
+                    }
+
+                    function addFolderLevel() {
+                        const template = document.getElementById("folderLevelTemplate");
+                        const container = document.getElementById("folderLevelsContainer");
+
+                        if (!template || !container) return;
+
+                        const clone = template.content.cloneNode(true);
+                        container.appendChild(clone);
+                        reindexFolderLevels();
+                    }
+
+                    function removeFolderLevel(button) {
+                        const container = document.getElementById("folderLevelsContainer");
+                        if (!container) return;
+
+                        const rows = container.querySelectorAll(".folder-level-row");
+
+                        if (rows.length <= 1) {
+                            const select = rows[0]?.querySelector("select");
+                            const input = rows[0]?.querySelector("input[type='text']");
+
+                            if (select) select.value = "";
+                            if (input) input.value = "";
+                            reindexFolderLevels();
+                            return;
+                        }
+
+                        const row = button.closest(".folder-level-row");
+                        if (row) {
+                            row.remove();
+                        }
+
+                        reindexFolderLevels();
+                    }
+
+                    function applyEitherOrState(leftInput, rightInput, leftBox, rightBox) {
+                        const leftHasValue = leftInput && leftInput.value && leftInput.value.trim() !== "";
+                        const rightHasValue = rightInput && rightInput.value && rightInput.value.trim() !== "";
+
+                        if (leftInput && rightInput) {
+                            if (leftHasValue) {
+                                rightInput.disabled = true;
+                                rightBox?.classList.add("choice-disabled");
+                                leftBox?.classList.remove("choice-disabled");
+                            } else if (rightHasValue) {
+                                leftInput.disabled = true;
+                                leftBox?.classList.add("choice-disabled");
+                                rightBox?.classList.remove("choice-disabled");
+                            } else {
+                                leftInput.disabled = false;
+                                rightInput.disabled = false;
+                                leftBox?.classList.remove("choice-disabled");
+                                rightBox?.classList.remove("choice-disabled");
+                            }
+                        }
+                    }
+
+                    function setupBaseDirectoryChoiceBehaviour() {
+                        const presetSelect = document.getElementById("BaseDirectoryPreset");
+                        const customInput = document.getElementById("CustomBaseDirectory");
+                        const presetBox = document.getElementById("presetChoiceBox");
+                        const customBox = document.getElementById("customBaseChoiceBox");
+
+                        if (!presetSelect || !customInput) return;
+
+                        function refreshBaseDirectoryState() {
+                            applyEitherOrState(presetSelect, customInput, presetBox, customBox);
+                        }
+
+                        presetSelect.addEventListener("change", refreshBaseDirectoryState);
+                        customInput.addEventListener("input", refreshBaseDirectoryState);
+
+                        refreshBaseDirectoryState();
+                    }
+
+                    function setupFolderLevelChoiceBehaviour() {
+                        const rows = document.querySelectorAll(".folder-level-row");
+
+                        rows.forEach(function (row) {
+                            const select = row.querySelector("select");
+                            const input = row.querySelector("input[type='text']");
+                            const leftBox = row.querySelector(".folder-field-box");
+                            const rightBox = row.querySelector(".folder-text-box");
+
+                            if (!select || !input) return;
+
+                            function refreshFolderLevelState() {
+                                applyEitherOrState(select, input, leftBox, rightBox);
+                            }
+
+                            select.removeEventListener?.("change", refreshFolderLevelState);
+                            input.removeEventListener?.("input", refreshFolderLevelState);
+
+                            select.addEventListener("change", refreshFolderLevelState);
+                            input.addEventListener("input", refreshFolderLevelState);
+
+                            refreshFolderLevelState();
+                        });
+                    }
+
+                    window.addEventListener("load", function () {
+                        reindexFolderLevels();
+                        setupBaseDirectoryChoiceBehaviour();
+
+                        const downloadMessage = document.querySelector(".download-feedback");
+
+                        if (downloadMessage) {
+                            downloadMessage.scrollIntoView({
+                                behavior: "smooth",
+                                block: "center"
+                            });
+                            return;
+                        }
+
+                        const targetId = "@Model.ScrollToStep";
+
+                        if (targetId) {
+                            const section = document.getElementById(targetId);
+                            if (section) {
+                                section.scrollIntoView({
+                                    behavior: "smooth",
+                                    block: "start"
+                                });
+                            }
+                        }
+                    });
+            </script>
+        </body>
+    </html>
